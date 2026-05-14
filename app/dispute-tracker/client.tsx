@@ -180,9 +180,10 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
                     outerRadius={90}
                     innerRadius={50}
                     paddingAngle={2}
-                    label={(entry: { label?: string; count?: number }) =>
-                      `${entry.label ?? ""} (${entry.count ?? 0})`
-                    }
+                    label={(props) => {
+                      const e = props as { label?: string; count?: number };
+                      return `${e.label ?? ""} (${e.count ?? 0})`;
+                    }}
                     labelLine={false}
                   >
                     {data.byStatus.map((s) => (
@@ -196,7 +197,7 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
                       borderRadius: 8,
                       color: "#e2e8f0",
                     }}
-                    formatter={(value: number, name: string) => [`${value} disputes`, name]}
+                    formatter={(value, name) => [`${Number(value ?? 0)} disputes`, String(name ?? "")]}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -233,7 +234,7 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
                       borderRadius: 8,
                       color: "#e2e8f0",
                     }}
-                    formatter={(value: number) => [`${value} disputes`, "Count"]}
+                    formatter={(value) => [`${Number(value ?? 0)} disputes`, "Count"]}
                   />
                   <Bar dataKey="count" fill="#3b82f6" radius={[6, 6, 0, 0]} />
                 </BarChart>
