@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import {
   PieChart,
   Pie,
@@ -12,10 +12,13 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  Legend,
 } from "recharts";
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Clock,
   DollarSign,
   ExternalLink,
@@ -57,6 +60,15 @@ function disputeUrl(d: DisputeRow): string | null {
   return null;
 }
 
+function orderDisplay(d: DisputeRow): string {
+  return (
+    d.shopify_order_name?.trim() ||
+    d.shopify_order_id ||
+    d.order_id ||
+    "—"
+  );
+}
+
 const TOOLTIP_STYLE = {
   background: "#ffffff",
   border: "1px solid #EAEAEA",
@@ -64,6 +76,7 @@ const TOOLTIP_STYLE = {
   color: "#2E2E2E",
   boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
   fontSize: 12,
+  padding: "8px 12px",
 };
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -75,16 +88,60 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
   const [selectedMerchant, setSelectedMerchant] = useState<MerchantAggRow | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [refreshing, setRefreshing] = useState(false);
+  const [expandedMerchants, setExpandedMerchants] = useState<Set<string>>(new Set());
+  const allDisputesRef = useRef<HTMLDivElement>(null);
 
   const filteredDisputes = useMemo(() => {
     if (filterStatus === "all") return data.disputes;
     return data.disputes.filter((d) => d.status === filterStatus);
   }, [data.disputes, filterStatus]);
 
+  // Group filtered disputes by merchant
+  const disputesByMerchant = useMemo(() => {
+    const map = new Map<
+      string,
+      { merchant_id: string; merchant: string; disputes: DisputeRow[] }
+    >();
+    for (const d of filteredDisputes) {
+      if (!map.has(d.merchant_id)) {
+        map.set(d.merchant_id, {
+          merchant_id: d.merchant_id,
+          merchant: d.merchant,
+          disputes: [],
+        });
+      }
+      map.get(d.merchant_id)!.disputes.push(d);
+    }
+    return Array.from(map.values()).sort((a, b) => b.disputes.length - a.disputes.length);
+  }, [filteredDisputes]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     window.location.reload();
   };
+
+  const handleKpiClick = (status: string) => {
+    setFilterStatus(status);
+    // Auto-expand all merchants when filtering
+    if (status !== "all") {
+      const all = new Set(data.disputes.filter((d) => d.status === status).map((d) => d.merchant_id));
+      setExpandedMerchants(all);
+    }
+    setTimeout(() => allDisputesRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+  };
+
+  const toggleMerchant = (id: string) => {
+    setExpandedMerchants((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const expandAll = () =>
+    setExpandedMerchants(new Set(disputesByMerchant.map((g) => g.merchant_id)));
+  const collapseAll = () => setExpandedMerchants(new Set());
 
   return (
     <div className="min-h-screen p-6 lg:p-8 max-w-[1600px] mx-auto">
@@ -97,9 +154,9 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
           <p className="text-[#6E6E6E] mt-2 text-sm max-w-2xl">
             Live dispute dashboard sourced 100% from production Postgres (
             <span className="font-mono text-[#2E2E2E]">order_info</span>,{" "}
-            <span className="font-mono text-[#2E2E2E]">merchant</span>,{" "}
-            <span className="font-mono text-[#2E2E2E]">ledger_entry</span>). No sheet
-            dependency, no manual entry.
+            <span className="font-mono text-[#2E2E2E]">shopify_store</span>,{" "}
+            <span className="font-mono text-[#2E2E2E]">ledger_entry</span>). Click any
+            KPI or row to drill in.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -120,31 +177,39 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
         </div>
       </div>
 
-      {/* KPI Row */}
+      {/* KPI Row — clickable */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <Kpi
           label="Total Disputes"
           value={fmt.num(data.totals.totalDisputes)}
           icon={<ShieldAlert className="w-4 h-4" />}
           accent="red"
+          onClick={() => handleKpiClick("all")}
+          active={filterStatus === "all"}
         />
         <Kpi
           label="Open"
           value={fmt.num(data.totals.openDisputes)}
           icon={<Clock className="w-4 h-4" />}
           accent="brand"
+          onClick={() => handleKpiClick("open")}
+          active={filterStatus === "open"}
         />
         <Kpi
           label="Lost"
           value={fmt.num(data.totals.lostDisputes)}
           icon={<TrendingDown className="w-4 h-4" />}
           accent="red"
+          onClick={() => handleKpiClick("lost")}
+          active={filterStatus === "lost"}
         />
         <Kpi
           label="Won"
           value={fmt.num(data.totals.wonDisputes)}
           icon={<CheckCircle2 className="w-4 h-4" />}
           accent="emerald"
+          onClick={() => handleKpiClick("won")}
+          active={filterStatus === "won"}
         />
         <Kpi
           label="Total Orders"
@@ -172,7 +237,8 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
         <div className="sa-card p-6">
           <h3 className="text-sm font-semibold text-[#2E2E2E] mb-1">Status Breakdown</h3>
           <p className="text-xs text-[#6E6E6E] mb-4">
-            Live values from <span className="font-mono">order_info.dispute_status</span>
+            Hover for details · sourced from{" "}
+            <span className="font-mono">order_info.dispute_status</span>
           </p>
           {data.byStatus.length === 0 ? (
             <EmptyState text="No disputes in DB" />
@@ -186,14 +252,11 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
                     nameKey="label"
                     cx="50%"
                     cy="50%"
-                    outerRadius={90}
-                    innerRadius={50}
+                    outerRadius={95}
+                    innerRadius={55}
                     paddingAngle={2}
-                    label={(props) => {
-                      const e = props as { label?: string; count?: number };
-                      return `${e.label ?? ""} (${e.count ?? 0})`;
-                    }}
-                    labelLine={false}
+                    stroke="#ffffff"
+                    strokeWidth={2}
                   >
                     {data.byStatus.map((s) => (
                       <Cell key={s.label} fill={statusColor(s.label)} />
@@ -205,6 +268,12 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
                       `${Number(value ?? 0)} disputes`,
                       String(name ?? ""),
                     ]}
+                  />
+                  <Legend
+                    iconType="circle"
+                    iconSize={8}
+                    wrapperStyle={{ fontSize: 12, color: "#2E2E2E", paddingTop: 8 }}
+                    formatter={(v) => <span style={{ color: "#2E2E2E" }}>{v}</span>}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -222,20 +291,26 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
           ) : (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.byProvider} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
+                <BarChart
+                  data={data.byProvider}
+                  margin={{ top: 8, right: 16, bottom: 8, left: 0 }}
+                >
                   <CartesianGrid stroke="#EAEAEA" vertical={false} />
                   <XAxis
                     dataKey="label"
                     tick={{ fill: "#6E6E6E", fontSize: 11 }}
-                    axisLine={{ stroke: "#D2D2D2" }}
+                    axisLine={{ stroke: "#EAEAEA" }}
+                    tickLine={false}
                   />
                   <YAxis
                     allowDecimals={false}
                     tick={{ fill: "#6E6E6E", fontSize: 11 }}
-                    axisLine={{ stroke: "#D2D2D2" }}
+                    axisLine={{ stroke: "#EAEAEA" }}
+                    tickLine={false}
                   />
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
+                    cursor={{ fill: "rgba(0, 74, 172, 0.06)" }}
                     formatter={(value) => [`${Number(value ?? 0)} disputes`, "Count"]}
                   />
                   <Bar dataKey="count" fill="#004AAC" radius={[6, 6, 0, 0]} />
@@ -252,8 +327,7 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
           <div>
             <h3 className="text-sm font-semibold text-[#2E2E2E]">Per-Merchant Health</h3>
             <p className="text-xs text-[#6E6E6E]">
-              Order counts from live Postgres (excl. canceled/archived/draft). Click a row
-              for merchant detail.
+              Click any merchant for the full dispute breakdown
             </p>
           </div>
           <TierLegend />
@@ -263,6 +337,7 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
             <thead>
               <tr>
                 <th>Merchant</th>
+                <th>Last Dispute</th>
                 <th className="text-right">Disputes</th>
                 <th className="text-right">Open</th>
                 <th className="text-right">Lost</th>
@@ -281,11 +356,9 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
                   <tr key={m.merchant_id} onClick={() => setSelectedMerchant(m)}>
                     <td>
                       <div className="font-medium text-[#2E2E2E]">{m.merchant}</div>
-                      {m.last_dispute_at && (
-                        <div className="text-xs text-[#6E6E6E] mt-0.5">
-                          last dispute {fmt.date(m.last_dispute_at)}
-                        </div>
-                      )}
+                    </td>
+                    <td className="text-[#6E6E6E] text-xs">
+                      {fmt.date(m.last_dispute_at)}
                     </td>
                     <td className="text-right font-semibold text-[#2E2E2E]">{m.disputes}</td>
                     <td className="text-right text-[#004AAC]">{m.open || "—"}</td>
@@ -318,16 +391,32 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
         </div>
       </div>
 
-      {/* All disputes table */}
-      <div className="sa-card p-6">
+      {/* All disputes — grouped by merchant */}
+      <div ref={allDisputesRef} className="sa-card p-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div>
             <h3 className="text-sm font-semibold text-[#2E2E2E]">
-              All Disputes ({filteredDisputes.length})
+              All Disputes — grouped by merchant ({filteredDisputes.length})
             </h3>
-            <p className="text-xs text-[#6E6E6E]">Click a row to see full detail</p>
+            <p className="text-xs text-[#6E6E6E]">
+              Click a merchant to expand · click a row to see full dispute detail
+            </p>
           </div>
           <div className="flex items-center gap-2 text-xs flex-wrap">
+            <button
+              onClick={expandAll}
+              className="text-xs text-[#004AAC] hover:underline"
+            >
+              Expand all
+            </button>
+            <span className="text-[#D2D2D2]">·</span>
+            <button
+              onClick={collapseAll}
+              className="text-xs text-[#004AAC] hover:underline"
+            >
+              Collapse all
+            </button>
+            <span className="text-[#D2D2D2] mx-1">·</span>
             <span className="text-[#6E6E6E]">Filter:</span>
             <FilterPill active={filterStatus === "all"} onClick={() => setFilterStatus("all")}>
               All
@@ -344,72 +433,147 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
             ))}
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full sa-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Merchant</th>
-                <th>Customer</th>
-                <th>Provider</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Order</th>
-                <th>Deadline</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredDisputes.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="text-center text-[#6E6E6E] py-8">
-                    No disputes match this filter
-                  </td>
-                </tr>
-              ) : (
-                filteredDisputes.map((d) => (
-                  <tr key={d.dispute_id} onClick={() => setSelectedDispute(d)}>
-                    <td className="text-[#6E6E6E]">{fmt.date(d.created_at)}</td>
-                    <td className="text-[#2E2E2E] font-medium">{d.merchant}</td>
-                    <td>
-                      <div className="text-[#2E2E2E]">{d.customer_name ?? "—"}</div>
-                      {d.customer_email && (
-                        <div className="text-xs text-[#6E6E6E]">{d.customer_email}</div>
+
+        {disputesByMerchant.length === 0 ? (
+          <div className="text-center text-[#6E6E6E] py-8 text-sm">
+            No disputes match this filter
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {disputesByMerchant.map((g) => {
+              const expanded = expandedMerchants.has(g.merchant_id);
+              const stats = {
+                open: g.disputes.filter((d) => d.status === "open").length,
+                lost: g.disputes.filter((d) => d.status === "lost").length,
+                won: g.disputes.filter((d) => d.status === "won").length,
+              };
+              return (
+                <div
+                  key={g.merchant_id}
+                  className="border border-[#EAEAEA] rounded-[0.625rem] overflow-hidden"
+                >
+                  <button
+                    onClick={() => toggleMerchant(g.merchant_id)}
+                    className="w-full flex items-center justify-between gap-4 px-4 py-3 bg-white hover:bg-[#F7F7F7] transition text-left"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      {expanded ? (
+                        <ChevronDown className="w-4 h-4 text-[#6E6E6E] flex-shrink-0" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-[#6E6E6E] flex-shrink-0" />
                       )}
-                    </td>
-                    <td className="text-[#6E6E6E]">{d.provider}</td>
-                    <td className="text-[#2E2E2E] font-semibold">
-                      {fmt.money(d.amount_cents, d.currency)}
-                    </td>
-                    <td>
-                      <span
-                        className={cn(
-                          "inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase",
-                          statusBadgeClasses(d.status)
-                        )}
-                      >
-                        {d.status}
+                      <div className="font-medium text-[#2E2E2E] truncate">
+                        {g.merchant}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs flex-shrink-0">
+                      <span className="text-[#6E6E6E]">
+                        {g.disputes.length} dispute{g.disputes.length === 1 ? "" : "s"}
                       </span>
-                    </td>
-                    <td className="text-[#6E6E6E] font-mono text-xs">
-                      {d.shopify_order_name?.trim() || "—"}
-                    </td>
-                    <td className="text-[#6E6E6E]">{fmt.date(d.evidence_due_at)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                      {stats.open > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-[#E6EEFA] text-[#004AAC] font-bold text-[10px]">
+                          {stats.open} OPEN
+                        </span>
+                      )}
+                      {stats.lost > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-bold text-[10px]">
+                          {stats.lost} LOST
+                        </span>
+                      )}
+                      {stats.won > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px]">
+                          {stats.won} WON
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                  {expanded && (
+                    <div className="bg-[#FAFAFA] border-t border-[#EAEAEA] overflow-x-auto">
+                      <table className="w-full sa-table">
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Customer</th>
+                            <th>Provider</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Order</th>
+                            <th>Dispute ID</th>
+                            <th>Deadline</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {g.disputes.map((d) => (
+                            <tr
+                              key={d.dispute_id}
+                              onClick={() => setSelectedDispute(d)}
+                            >
+                              <td className="text-[#6E6E6E] whitespace-nowrap">
+                                {fmt.date(d.created_at)}
+                              </td>
+                              <td>
+                                <div className="text-[#2E2E2E]">
+                                  {d.customer_name ?? "—"}
+                                </div>
+                                {d.customer_email && (
+                                  <div className="text-xs text-[#6E6E6E]">
+                                    {d.customer_email}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="text-[#6E6E6E]">{d.provider}</td>
+                              <td className="text-[#2E2E2E] font-semibold whitespace-nowrap">
+                                {fmt.money(d.amount_cents, d.currency)}
+                              </td>
+                              <td>
+                                <span
+                                  className={cn(
+                                    "inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase",
+                                    statusBadgeClasses(d.status)
+                                  )}
+                                >
+                                  {d.status}
+                                </span>
+                              </td>
+                              <td className="text-[#6E6E6E] font-mono text-xs">
+                                {orderDisplay(d)}
+                              </td>
+                              <td className="font-mono text-[10px] text-[#6E6E6E] max-w-[180px] truncate">
+                                {d.dispute_id}
+                              </td>
+                              <td className="text-[#6E6E6E] whitespace-nowrap">
+                                {fmt.date(d.evidence_due_at)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {selectedDispute && (
-        <DisputeModal dispute={selectedDispute} onClose={() => setSelectedDispute(null)} />
+        <DisputeModal
+          dispute={selectedDispute}
+          onClose={() => setSelectedDispute(null)}
+        />
       )}
       {selectedMerchant && (
         <MerchantModal
           merchant={selectedMerchant}
-          disputes={data.disputes.filter((d) => d.merchant_id === selectedMerchant.merchant_id)}
+          disputes={data.disputes.filter(
+            (d) => d.merchant_id === selectedMerchant.merchant_id
+          )}
           onClose={() => setSelectedMerchant(null)}
+          onDisputeClick={(d) => {
+            setSelectedMerchant(null);
+            setSelectedDispute(d);
+          }}
         />
       )}
     </div>
@@ -420,12 +584,12 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
 /* Sub-components                                                               */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-const ACCENT_STYLES: Record<string, { icon: string }> = {
-  brand: { icon: "text-[#004AAC] bg-[#E6EEFA]" },
-  red: { icon: "text-red-700 bg-red-50" },
-  emerald: { icon: "text-emerald-700 bg-emerald-50" },
-  amber: { icon: "text-amber-700 bg-amber-50" },
-  gray: { icon: "text-gray-700 bg-gray-100" },
+const ACCENT_STYLES: Record<string, { icon: string; activeRing: string }> = {
+  brand: { icon: "text-[#004AAC] bg-[#E6EEFA]", activeRing: "ring-[#004AAC]" },
+  red: { icon: "text-red-700 bg-red-50", activeRing: "ring-red-400" },
+  emerald: { icon: "text-emerald-700 bg-emerald-50", activeRing: "ring-emerald-400" },
+  amber: { icon: "text-amber-700 bg-amber-50", activeRing: "ring-amber-400" },
+  gray: { icon: "text-gray-700 bg-gray-100", activeRing: "ring-gray-400" },
 };
 
 function Kpi({
@@ -434,23 +598,36 @@ function Kpi({
   icon,
   accent,
   hint,
+  onClick,
+  active,
 }: {
   label: string;
   value: string;
   icon: React.ReactNode;
   accent: keyof typeof ACCENT_STYLES;
   hint?: string;
+  onClick?: () => void;
+  active?: boolean;
 }) {
   const styles = ACCENT_STYLES[accent];
+  const clickable = !!onClick;
+  const Tag = clickable ? "button" : "div";
   return (
-    <div className="kpi-card">
+    <Tag
+      onClick={onClick}
+      className={cn(
+        "kpi-card text-left w-full",
+        clickable && "cursor-pointer hover:shadow-md hover:border-[#004AAC]",
+        active && `ring-2 ${styles.activeRing} border-[#004AAC]`
+      )}
+    >
       <div className="flex items-center justify-between mb-2">
         <span className="kpi-label">{label}</span>
         <span className={cn("p-1.5 rounded-md", styles.icon)}>{icon}</span>
       </div>
       <div className="kpi-value">{value}</div>
       {hint && <div className="text-[10px] text-[#6E6E6E] mt-1">{hint}</div>}
-    </div>
+    </Tag>
   );
 }
 
@@ -513,11 +690,19 @@ function TierLegend() {
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="h-64 flex items-center justify-center text-[#6E6E6E] text-sm">{text}</div>
+    <div className="h-64 flex items-center justify-center text-[#6E6E6E] text-sm">
+      {text}
+    </div>
   );
 }
 
-function DisputeModal({ dispute, onClose }: { dispute: DisputeRow; onClose: () => void }) {
+function DisputeModal({
+  dispute,
+  onClose,
+}: {
+  dispute: DisputeRow;
+  onClose: () => void;
+}) {
   const url = disputeUrl(dispute);
   return (
     <div
@@ -529,13 +714,15 @@ function DisputeModal({ dispute, onClose }: { dispute: DisputeRow; onClose: () =
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-5">
-          <div>
+          <div className="min-w-0">
             <div className="text-xs text-[#6E6E6E] mb-1">Dispute ID</div>
-            <div className="font-mono text-sm text-[#2E2E2E]">{dispute.dispute_id}</div>
+            <div className="font-mono text-sm text-[#2E2E2E] break-all">
+              {dispute.dispute_id}
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="text-[#6E6E6E] hover:text-[#2E2E2E] p-1 rounded hover:bg-gray-100 transition"
+            className="text-[#6E6E6E] hover:text-[#2E2E2E] p-1 rounded hover:bg-gray-100 transition flex-shrink-0 ml-3"
           >
             <X className="w-5 h-5" />
           </button>
@@ -567,7 +754,7 @@ function DisputeModal({ dispute, onClose }: { dispute: DisputeRow; onClose: () =
           <Field label="Created" value={fmt.date(dispute.created_at)} />
           <Field label="Evidence Deadline" value={fmt.date(dispute.evidence_due_at)} />
           <Field label="Resolved" value={fmt.date(dispute.resolved_at)} />
-          <Field label="Order" value={dispute.shopify_order_name?.trim() || "—"} />
+          <Field label="Order" value={orderDisplay(dispute)} />
           <Field label="Order ID" value={dispute.order_id ?? "—"} mono />
           <Field label="Payment Gateway" value={dispute.payment_gateway ?? "—"} />
           {dispute.fee_usd_cents > 0 && (
@@ -598,10 +785,12 @@ function MerchantModal({
   merchant,
   disputes,
   onClose,
+  onDisputeClick,
 }: {
   merchant: MerchantAggRow;
   disputes: DisputeRow[];
   onClose: () => void;
+  onDisputeClick: (d: DisputeRow) => void;
 }) {
   const tier = classifyTier(merchant.ratio_pct, merchant.orders);
   const meta = TIER_META[tier];
@@ -611,14 +800,18 @@ function MerchantModal({
       onClick={onClose}
     >
       <div
-        className="sa-card max-w-3xl w-full p-6 my-8"
+        className="sa-card max-w-4xl w-full p-6 my-8"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-5">
           <div>
             <div className="text-xs text-[#6E6E6E] mb-1">Merchant</div>
-            <div className="text-xl font-semibold text-[#2E2E2E]">{merchant.merchant}</div>
-            <div className="font-mono text-xs text-[#6E6E6E] mt-1">{merchant.merchant_id}</div>
+            <div className="text-xl font-semibold text-[#2E2E2E]">
+              {merchant.merchant}
+            </div>
+            <div className="font-mono text-xs text-[#6E6E6E] mt-1">
+              {merchant.merchant_id}
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -631,11 +824,15 @@ function MerchantModal({
         <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="kpi-card">
             <div className="kpi-label">Disputes</div>
-            <div className="text-2xl font-semibold text-[#2E2E2E]">{merchant.disputes}</div>
+            <div className="text-2xl font-semibold text-[#2E2E2E]">
+              {merchant.disputes}
+            </div>
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Orders</div>
-            <div className="text-2xl font-semibold text-[#2E2E2E]">{fmt.num(merchant.orders)}</div>
+            <div className="text-2xl font-semibold text-[#2E2E2E]">
+              {fmt.num(merchant.orders)}
+            </div>
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Ratio</div>
@@ -656,7 +853,7 @@ function MerchantModal({
         </div>
 
         <h4 className="text-sm font-semibold text-[#2E2E2E] mb-3">
-          Disputes ({disputes.length})
+          Disputes ({disputes.length}) · click any row for full detail
         </h4>
         <div className="overflow-x-auto">
           <table className="w-full sa-table">
@@ -664,16 +861,27 @@ function MerchantModal({
               <tr>
                 <th>Date</th>
                 <th>Customer</th>
+                <th>Provider</th>
                 <th>Amount</th>
                 <th>Status</th>
+                <th>Order</th>
+                <th>Dispute ID</th>
               </tr>
             </thead>
             <tbody>
               {disputes.map((d) => (
-                <tr key={d.dispute_id}>
-                  <td className="text-[#6E6E6E]">{fmt.date(d.created_at)}</td>
-                  <td className="text-[#2E2E2E]">{d.customer_name ?? "—"}</td>
-                  <td className="text-[#2E2E2E] font-semibold">
+                <tr key={d.dispute_id} onClick={() => onDisputeClick(d)}>
+                  <td className="text-[#6E6E6E] whitespace-nowrap">
+                    {fmt.date(d.created_at)}
+                  </td>
+                  <td>
+                    <div className="text-[#2E2E2E]">{d.customer_name ?? "—"}</div>
+                    {d.customer_email && (
+                      <div className="text-xs text-[#6E6E6E]">{d.customer_email}</div>
+                    )}
+                  </td>
+                  <td className="text-[#6E6E6E]">{d.provider}</td>
+                  <td className="text-[#2E2E2E] font-semibold whitespace-nowrap">
                     {fmt.money(d.amount_cents, d.currency)}
                   </td>
                   <td>
@@ -685,6 +893,12 @@ function MerchantModal({
                     >
                       {d.status}
                     </span>
+                  </td>
+                  <td className="text-[#6E6E6E] font-mono text-xs">
+                    {orderDisplay(d)}
+                  </td>
+                  <td className="font-mono text-[10px] text-[#6E6E6E] max-w-[160px] truncate">
+                    {d.dispute_id}
                   </td>
                 </tr>
               ))}
@@ -710,7 +924,13 @@ function Field({
   return (
     <div>
       <div className="text-xs text-[#6E6E6E]">{label}</div>
-      <div className={cn("text-[#2E2E2E] mt-0.5", mono && "font-mono text-xs", valueClass)}>
+      <div
+        className={cn(
+          "text-[#2E2E2E] mt-0.5 break-words",
+          mono && "font-mono text-xs",
+          valueClass
+        )}
+      >
         {value}
       </div>
     </div>

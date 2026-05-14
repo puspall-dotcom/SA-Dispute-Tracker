@@ -18,6 +18,7 @@ export interface DisputeRow {
   evidence_due_at: string | null;
   resolved_at: string | null;
   shopify_order_name: string | null;
+  shopify_order_id: string | null;
   order_id: string | null;
   payment_gateway: string | null;
   fee_usd_cents: number;
@@ -85,6 +86,7 @@ export async function getDisputeDashboardData(): Promise<DisputeDashboardData> {
     evidence_due_at: string | null;
     resolved_at: string | null;
     shopify_order_name: string | null;
+    shopify_order_id: string | null;
     order_id: string | null;
     payment_gateway: string | null;
     dispute_fee_ledger_entry_id: string | null;
@@ -93,7 +95,7 @@ export async function getDisputeDashboardData(): Promise<DisputeDashboardData> {
     `SELECT
        oi.dispute_id,
        m.id::text AS merchant_id,
-       m.name AS merchant,
+       COALESCE(NULLIF(TRIM(ss.store_name), ''), m.name) AS merchant,
        o.email AS customer_email,
        c.first_name AS customer_first_name,
        c.last_name AS customer_last_name,
@@ -104,12 +106,14 @@ export async function getDisputeDashboardData(): Promise<DisputeDashboardData> {
        oi.dispute_evidence_due_at::text AS evidence_due_at,
        oi.dispute_resolved_at::text AS resolved_at,
        oi.shopify_order_name,
+       oi.shopify_order_id,
        oi.order_id,
        oi.payment_gateway,
        oi.dispute_fee_ledger_entry_id,
        oi.updated_at::text AS updated_at
      FROM order_info oi
      JOIN merchant m ON m.id = oi.merchant_id
+     LEFT JOIN shopify_store ss ON ss.merchant_id = m.id AND ss.deleted_at IS NULL
      LEFT JOIN merchant_merchant_order_order mmoo ON mmoo.order_id = oi.order_id
      LEFT JOIN "order" o ON o.id = mmoo.order_id
      LEFT JOIN customer c ON c.id = o.customer_id
@@ -143,16 +147,18 @@ export async function getDisputeDashboardData(): Promise<DisputeDashboardData> {
     merchant: string;
     orders: string;
   }>(
-    `SELECT m.id::text AS merchant_id, m.name AS merchant,
+    `SELECT m.id::text AS merchant_id,
+            COALESCE(NULLIF(TRIM(ss.store_name), ''), m.name) AS merchant,
             COUNT(DISTINCT oi.order_id)::text AS orders
      FROM order_info oi
      JOIN merchant m ON m.id = oi.merchant_id
+     LEFT JOIN shopify_store ss ON ss.merchant_id = m.id AND ss.deleted_at IS NULL
      JOIN merchant_merchant_order_order mmoo ON mmoo.order_id = oi.order_id
      JOIN "order" o ON o.id = mmoo.order_id
      WHERE m.is_test = false
        AND oi.deleted_at IS NULL
        AND o.status NOT IN ('canceled', 'archived', 'draft')
-     GROUP BY m.id, m.name`
+     GROUP BY m.id, m.name, ss.store_name`
   );
   const ordersByMerchant = new Map<string, { merchant: string; orders: number }>();
   let totalOrders = 0;
@@ -184,6 +190,7 @@ export async function getDisputeDashboardData(): Promise<DisputeDashboardData> {
       evidence_due_at: r.evidence_due_at,
       resolved_at: r.resolved_at,
       shopify_order_name: r.shopify_order_name,
+      shopify_order_id: r.shopify_order_id,
       order_id: r.order_id,
       payment_gateway: r.payment_gateway,
       fee_usd_cents,
