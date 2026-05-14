@@ -71,13 +71,13 @@ export const TIER_META: Record<
 > = {
   "off-board": {
     label: "OFF-BOARD",
-    bg: "bg-rose-100",
-    text: "text-rose-700",
-    border: "border-rose-200",
+    bg: "bg-red-50",
+    text: "text-red-700",
+    border: "border-red-200",
   },
   candidate: {
     label: "CANDIDATE",
-    bg: "bg-amber-100",
+    bg: "bg-amber-50",
     text: "text-amber-700",
     border: "border-amber-200",
   },
@@ -89,25 +89,25 @@ export const TIER_META: Record<
   },
   healthy: {
     label: "HEALTHY",
-    bg: "bg-emerald-100",
+    bg: "bg-emerald-50",
     text: "text-emerald-700",
     border: "border-emerald-200",
   },
   "n/a": {
     label: "N/A",
-    bg: "bg-slate-100",
-    text: "text-slate-600",
-    border: "border-slate-200",
+    bg: "bg-gray-100",
+    text: "text-gray-600",
+    border: "border-gray-200",
   },
 };
 
 export function statusBadgeClasses(status: string): string {
   const s = status.toLowerCase();
-  if (s === "won") return "bg-emerald-100 text-emerald-700 border-emerald-200";
-  if (s === "lost") return "bg-rose-100 text-rose-700 border-rose-200";
+  if (s === "won") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (s === "lost") return "bg-red-50 text-red-700 border-red-200";
   if (s === "under_review" || s === "submitted")
-    return "bg-blue-100 text-blue-700 border-blue-200";
+    return "bg-[#E6EEFA] text-[#004AAC] border-[#B8CFEC]";
   if (s === "needs_response" || s.includes("warning"))
-    return "bg-amber-100 text-amber-700 border-amber-200";
-  return "bg-slate-100 text-slate-700 border-slate-200";
+    return "bg-amber-50 text-amber-700 border-amber-200";
+  return "bg-gray-100 text-gray-700 border-gray-200";
 }

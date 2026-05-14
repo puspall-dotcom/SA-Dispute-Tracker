@@ -35,18 +35,18 @@ import {
 } from "@/lib/utils";
 
 const STATUS_COLORS: Record<string, string> = {
-  open: "#3b82f6",
-  needs_response: "#f59e0b",
-  under_review: "#06b6d4",
-  warning_needs_response: "#f59e0b",
-  warning_under_review: "#06b6d4",
-  warning_closed: "#a78bfa",
-  won: "#10b981",
-  lost: "#ef4444",
+  open: "#004AAC",
+  needs_response: "#d97706",
+  under_review: "#0891b2",
+  warning_needs_response: "#d97706",
+  warning_under_review: "#0891b2",
+  warning_closed: "#7c3aed",
+  won: "#16a34a",
+  lost: "#dc2626",
 };
 
 function statusColor(status: string): string {
-  return STATUS_COLORS[status.toLowerCase()] ?? "#94a3b8";
+  return STATUS_COLORS[status.toLowerCase()] ?? "#6E6E6E";
 }
 
 function disputeUrl(d: DisputeRow): string | null {
@@ -56,6 +56,15 @@ function disputeUrl(d: DisputeRow): string | null {
   }
   return null;
 }
+
+const TOOLTIP_STYLE = {
+  background: "#ffffff",
+  border: "1px solid #EAEAEA",
+  borderRadius: 8,
+  color: "#2E2E2E",
+  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
+  fontSize: 12,
+};
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* Main client                                                                  */
@@ -82,28 +91,28 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
       {/* Header */}
       <div className="flex items-start justify-between mb-8 flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl lg:text-4xl font-bold text-white tracking-tight">
+          <h1 className="text-3xl lg:text-4xl font-semibold text-[#2E2E2E] tracking-tight">
             Dispute Tracker
           </h1>
-          <p className="text-slate-400 mt-2 text-sm max-w-2xl">
+          <p className="text-[#6E6E6E] mt-2 text-sm max-w-2xl">
             Live dispute dashboard sourced 100% from production Postgres (
-            <span className="font-mono text-slate-300">order_info</span>,{" "}
-            <span className="font-mono text-slate-300">merchant</span>,{" "}
-            <span className="font-mono text-slate-300">ledger_entry</span>). No sheet
+            <span className="font-mono text-[#2E2E2E]">order_info</span>,{" "}
+            <span className="font-mono text-[#2E2E2E]">merchant</span>,{" "}
+            <span className="font-mono text-[#2E2E2E]">ledger_entry</span>). No sheet
             dependency, no manual entry.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-right text-xs text-slate-400">
+          <div className="text-right text-xs text-[#6E6E6E]">
             <div>Last DB update</div>
-            <div className="text-slate-200 font-medium">
+            <div className="text-[#2E2E2E] font-medium">
               {fmt.relativeTime(data.lastSyncedAt)}
             </div>
           </div>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-blue-800 disabled:opacity-60 text-white rounded-lg text-sm font-medium transition-all shadow-md"
+            className="btn-brand flex items-center gap-2"
           >
             <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
             Refresh
@@ -117,19 +126,19 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
           label="Total Disputes"
           value={fmt.num(data.totals.totalDisputes)}
           icon={<ShieldAlert className="w-4 h-4" />}
-          accent="rose"
+          accent="red"
         />
         <Kpi
           label="Open"
           value={fmt.num(data.totals.openDisputes)}
           icon={<Clock className="w-4 h-4" />}
-          accent="blue"
+          accent="brand"
         />
         <Kpi
           label="Lost"
           value={fmt.num(data.totals.lostDisputes)}
           icon={<TrendingDown className="w-4 h-4" />}
-          accent="rose"
+          accent="red"
         />
         <Kpi
           label="Won"
@@ -141,7 +150,7 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
           label="Total Orders"
           value={fmt.num(data.totals.totalOrders)}
           icon={<DollarSign className="w-4 h-4" />}
-          accent="slate"
+          accent="gray"
           hint="excl. canceled/archived/draft"
         />
         <Kpi
@@ -150,7 +159,7 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
           icon={<AlertTriangle className="w-4 h-4" />}
           accent={
             data.totals.companyRatioPct >= 1
-              ? "rose"
+              ? "red"
               : data.totals.companyRatioPct >= 0.5
               ? "amber"
               : "emerald"
@@ -160,9 +169,9 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="glass-card p-6">
-          <h3 className="text-sm font-semibold text-white mb-1">Status Breakdown</h3>
-          <p className="text-xs text-slate-400 mb-4">
+        <div className="sa-card p-6">
+          <h3 className="text-sm font-semibold text-[#2E2E2E] mb-1">Status Breakdown</h3>
+          <p className="text-xs text-[#6E6E6E] mb-4">
             Live values from <span className="font-mono">order_info.dispute_status</span>
           </p>
           {data.byStatus.length === 0 ? (
@@ -191,13 +200,11 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{
-                      background: "#0b1220",
-                      border: "1px solid #334155",
-                      borderRadius: 8,
-                      color: "#e2e8f0",
-                    }}
-                    formatter={(value, name) => [`${Number(value ?? 0)} disputes`, String(name ?? "")]}
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(value, name) => [
+                      `${Number(value ?? 0)} disputes`,
+                      String(name ?? ""),
+                    ]}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -205,9 +212,9 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
           )}
         </div>
 
-        <div className="glass-card p-6">
-          <h3 className="text-sm font-semibold text-white mb-1">By Provider</h3>
-          <p className="text-xs text-slate-400 mb-4">
+        <div className="sa-card p-6">
+          <h3 className="text-sm font-semibold text-[#2E2E2E] mb-1">By Provider</h3>
+          <p className="text-xs text-[#6E6E6E] mb-4">
             Provider classified from dispute_id format
           </p>
           {data.byProvider.length === 0 ? (
@@ -216,27 +223,22 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data.byProvider} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <CartesianGrid stroke="#EAEAEA" vertical={false} />
                   <XAxis
                     dataKey="label"
-                    tick={{ fill: "#94a3b8", fontSize: 11 }}
-                    axisLine={{ stroke: "#334155" }}
+                    tick={{ fill: "#6E6E6E", fontSize: 11 }}
+                    axisLine={{ stroke: "#D2D2D2" }}
                   />
                   <YAxis
                     allowDecimals={false}
-                    tick={{ fill: "#94a3b8", fontSize: 11 }}
-                    axisLine={{ stroke: "#334155" }}
+                    tick={{ fill: "#6E6E6E", fontSize: 11 }}
+                    axisLine={{ stroke: "#D2D2D2" }}
                   />
                   <Tooltip
-                    contentStyle={{
-                      background: "#0b1220",
-                      border: "1px solid #334155",
-                      borderRadius: 8,
-                      color: "#e2e8f0",
-                    }}
+                    contentStyle={TOOLTIP_STYLE}
                     formatter={(value) => [`${Number(value ?? 0)} disputes`, "Count"]}
                   />
-                  <Bar dataKey="count" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="count" fill="#004AAC" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -245,11 +247,11 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
       </div>
 
       {/* Per-merchant table */}
-      <div className="glass-card p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="sa-card p-6 mb-6">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-white">Per-Merchant Health</h3>
-            <p className="text-xs text-slate-400">
+            <h3 className="text-sm font-semibold text-[#2E2E2E]">Per-Merchant Health</h3>
+            <p className="text-xs text-[#6E6E6E]">
               Order counts from live Postgres (excl. canceled/archived/draft). Click a row
               for merchant detail.
             </p>
@@ -257,7 +259,7 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
           <TierLegend />
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full dispute-table">
+          <table className="w-full sa-table">
             <thead>
               <tr>
                 <th>Merchant</th>
@@ -278,19 +280,19 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
                 return (
                   <tr key={m.merchant_id} onClick={() => setSelectedMerchant(m)}>
                     <td>
-                      <div className="font-medium text-white">{m.merchant}</div>
+                      <div className="font-medium text-[#2E2E2E]">{m.merchant}</div>
                       {m.last_dispute_at && (
-                        <div className="text-xs text-slate-400 mt-0.5">
+                        <div className="text-xs text-[#6E6E6E] mt-0.5">
                           last dispute {fmt.date(m.last_dispute_at)}
                         </div>
                       )}
                     </td>
-                    <td className="text-right font-semibold text-white">{m.disputes}</td>
-                    <td className="text-right text-blue-300">{m.open || "—"}</td>
-                    <td className="text-right text-rose-300">{m.lost || "—"}</td>
-                    <td className="text-right text-emerald-300">{m.won || "—"}</td>
-                    <td className="text-right text-slate-300">{fmt.num(m.orders)}</td>
-                    <td className="text-right font-semibold text-white">
+                    <td className="text-right font-semibold text-[#2E2E2E]">{m.disputes}</td>
+                    <td className="text-right text-[#004AAC]">{m.open || "—"}</td>
+                    <td className="text-right text-red-600">{m.lost || "—"}</td>
+                    <td className="text-right text-emerald-600">{m.won || "—"}</td>
+                    <td className="text-right text-[#6E6E6E]">{fmt.num(m.orders)}</td>
+                    <td className="text-right font-semibold text-[#2E2E2E]">
                       {fmt.pct(m.ratio_pct, 2)}
                     </td>
                     <td>
@@ -305,7 +307,7 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
                         {meta.label}
                       </span>
                     </td>
-                    <td className="text-right text-slate-300">
+                    <td className="text-right text-[#6E6E6E]">
                       {m.fees_paid_usd_cents > 0 ? fmt.usd(m.fees_paid_usd_cents) : "—"}
                     </td>
                   </tr>
@@ -317,16 +319,16 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
       </div>
 
       {/* All disputes table */}
-      <div className="glass-card p-6">
+      <div className="sa-card p-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-white">
+            <h3 className="text-sm font-semibold text-[#2E2E2E]">
               All Disputes ({filteredDisputes.length})
             </h3>
-            <p className="text-xs text-slate-400">Click a row to see full detail</p>
+            <p className="text-xs text-[#6E6E6E]">Click a row to see full detail</p>
           </div>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-400">Filter:</span>
+          <div className="flex items-center gap-2 text-xs flex-wrap">
+            <span className="text-[#6E6E6E]">Filter:</span>
             <FilterPill active={filterStatus === "all"} onClick={() => setFilterStatus("all")}>
               All
             </FilterPill>
@@ -343,7 +345,7 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full dispute-table">
+          <table className="w-full sa-table">
             <thead>
               <tr>
                 <th>Date</th>
@@ -359,23 +361,23 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
             <tbody>
               {filteredDisputes.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center text-slate-400 py-8">
+                  <td colSpan={8} className="text-center text-[#6E6E6E] py-8">
                     No disputes match this filter
                   </td>
                 </tr>
               ) : (
                 filteredDisputes.map((d) => (
                   <tr key={d.dispute_id} onClick={() => setSelectedDispute(d)}>
-                    <td className="text-slate-300">{fmt.date(d.created_at)}</td>
-                    <td className="text-white font-medium">{d.merchant}</td>
+                    <td className="text-[#6E6E6E]">{fmt.date(d.created_at)}</td>
+                    <td className="text-[#2E2E2E] font-medium">{d.merchant}</td>
                     <td>
-                      <div className="text-white">{d.customer_name ?? "—"}</div>
+                      <div className="text-[#2E2E2E]">{d.customer_name ?? "—"}</div>
                       {d.customer_email && (
-                        <div className="text-xs text-slate-400">{d.customer_email}</div>
+                        <div className="text-xs text-[#6E6E6E]">{d.customer_email}</div>
                       )}
                     </td>
-                    <td className="text-slate-300">{d.provider}</td>
-                    <td className="text-white font-semibold">
+                    <td className="text-[#6E6E6E]">{d.provider}</td>
+                    <td className="text-[#2E2E2E] font-semibold">
                       {fmt.money(d.amount_cents, d.currency)}
                     </td>
                     <td>
@@ -388,10 +390,10 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
                         {d.status}
                       </span>
                     </td>
-                    <td className="text-slate-300 font-mono text-xs">
+                    <td className="text-[#6E6E6E] font-mono text-xs">
                       {d.shopify_order_name?.trim() || "—"}
                     </td>
-                    <td className="text-slate-300">{fmt.date(d.evidence_due_at)}</td>
+                    <td className="text-[#6E6E6E]">{fmt.date(d.evidence_due_at)}</td>
                   </tr>
                 ))
               )}
@@ -418,12 +420,12 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
 /* Sub-components                                                               */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-const ACCENT_STYLES: Record<string, { ring: string; icon: string }> = {
-  rose: { ring: "ring-rose-500/30", icon: "text-rose-400 bg-rose-500/15" },
-  blue: { ring: "ring-blue-500/30", icon: "text-blue-400 bg-blue-500/15" },
-  emerald: { ring: "ring-emerald-500/30", icon: "text-emerald-400 bg-emerald-500/15" },
-  amber: { ring: "ring-amber-500/30", icon: "text-amber-400 bg-amber-500/15" },
-  slate: { ring: "ring-slate-500/30", icon: "text-slate-400 bg-slate-500/15" },
+const ACCENT_STYLES: Record<string, { icon: string }> = {
+  brand: { icon: "text-[#004AAC] bg-[#E6EEFA]" },
+  red: { icon: "text-red-700 bg-red-50" },
+  emerald: { icon: "text-emerald-700 bg-emerald-50" },
+  amber: { icon: "text-amber-700 bg-amber-50" },
+  gray: { icon: "text-gray-700 bg-gray-100" },
 };
 
 function Kpi({
@@ -441,13 +443,13 @@ function Kpi({
 }) {
   const styles = ACCENT_STYLES[accent];
   return (
-    <div className={cn("brand-card p-4 ring-1", styles.ring)}>
+    <div className="kpi-card">
       <div className="flex items-center justify-between mb-2">
         <span className="kpi-label">{label}</span>
         <span className={cn("p-1.5 rounded-md", styles.icon)}>{icon}</span>
       </div>
       <div className="kpi-value">{value}</div>
-      {hint && <div className="text-[10px] text-slate-500 mt-1">{hint}</div>}
+      {hint && <div className="text-[10px] text-[#6E6E6E] mt-1">{hint}</div>}
     </div>
   );
 }
@@ -469,8 +471,8 @@ function FilterPill({
       className={cn(
         "px-3 py-1 rounded-full border text-xs font-medium transition-all",
         active
-          ? "bg-white/10 border-white/30 text-white"
-          : "bg-transparent border-white/10 text-slate-400 hover:text-slate-200 hover:border-white/20"
+          ? "bg-[#E6EEFA] border-[#004AAC] text-[#004AAC]"
+          : "bg-white border-[#EAEAEA] text-[#6E6E6E] hover:border-[#004AAC] hover:text-[#2E2E2E]"
       )}
       style={color && !active ? { borderColor: `${color}40` } : undefined}
     >
@@ -511,7 +513,7 @@ function TierLegend() {
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="h-64 flex items-center justify-center text-slate-500 text-sm">{text}</div>
+    <div className="h-64 flex items-center justify-center text-[#6E6E6E] text-sm">{text}</div>
   );
 }
 
@@ -519,21 +521,21 @@ function DisputeModal({ dispute, onClose }: { dispute: DisputeRow; onClose: () =
   const url = disputeUrl(dispute);
   return (
     <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-start justify-center p-4 lg:p-12 overflow-y-auto"
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-start justify-center p-4 lg:p-12 overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="glass-card max-w-2xl w-full p-6 my-8"
+        className="sa-card max-w-2xl w-full p-6 my-8"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-5">
           <div>
-            <div className="text-xs text-slate-400 mb-1">Dispute ID</div>
-            <div className="font-mono text-sm text-white">{dispute.dispute_id}</div>
+            <div className="text-xs text-[#6E6E6E] mb-1">Dispute ID</div>
+            <div className="font-mono text-sm text-[#2E2E2E]">{dispute.dispute_id}</div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded hover:bg-white/10 transition"
+            className="text-[#6E6E6E] hover:text-[#2E2E2E] p-1 rounded hover:bg-gray-100 transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -547,7 +549,7 @@ function DisputeModal({ dispute, onClose }: { dispute: DisputeRow; onClose: () =
           <Field
             label="Amount"
             value={fmt.money(dispute.amount_cents, dispute.currency)}
-            valueClass="text-white font-semibold"
+            valueClass="text-[#2E2E2E] font-semibold"
           />
           <Field
             label="Status"
@@ -572,7 +574,7 @@ function DisputeModal({ dispute, onClose }: { dispute: DisputeRow; onClose: () =
             <Field
               label="$50 Fee"
               value={fmt.usd(dispute.fee_usd_cents)}
-              valueClass="text-rose-300 font-semibold"
+              valueClass="text-red-600 font-semibold"
             />
           )}
         </div>
@@ -582,7 +584,7 @@ function DisputeModal({ dispute, onClose }: { dispute: DisputeRow; onClose: () =
             href={url}
             target="_blank"
             rel="noreferrer"
-            className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm text-white font-medium transition"
+            className="btn-brand mt-6 inline-flex items-center gap-2"
           >
             Open in Stripe <ExternalLink className="w-3.5 h-3.5" />
           </a>
@@ -605,39 +607,41 @@ function MerchantModal({
   const meta = TIER_META[tier];
   return (
     <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-start justify-center p-4 lg:p-12 overflow-y-auto"
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-start justify-center p-4 lg:p-12 overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="glass-card max-w-3xl w-full p-6 my-8"
+        className="sa-card max-w-3xl w-full p-6 my-8"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-5">
           <div>
-            <div className="text-xs text-slate-400 mb-1">Merchant</div>
-            <div className="text-xl font-bold text-white">{merchant.merchant}</div>
-            <div className="font-mono text-xs text-slate-500 mt-1">{merchant.merchant_id}</div>
+            <div className="text-xs text-[#6E6E6E] mb-1">Merchant</div>
+            <div className="text-xl font-semibold text-[#2E2E2E]">{merchant.merchant}</div>
+            <div className="font-mono text-xs text-[#6E6E6E] mt-1">{merchant.merchant_id}</div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded hover:bg-white/10 transition"
+            className="text-[#6E6E6E] hover:text-[#2E2E2E] p-1 rounded hover:bg-gray-100 transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="brand-card p-3">
+          <div className="kpi-card">
             <div className="kpi-label">Disputes</div>
-            <div className="text-2xl font-bold text-white">{merchant.disputes}</div>
+            <div className="text-2xl font-semibold text-[#2E2E2E]">{merchant.disputes}</div>
           </div>
-          <div className="brand-card p-3">
+          <div className="kpi-card">
             <div className="kpi-label">Orders</div>
-            <div className="text-2xl font-bold text-white">{fmt.num(merchant.orders)}</div>
+            <div className="text-2xl font-semibold text-[#2E2E2E]">{fmt.num(merchant.orders)}</div>
           </div>
-          <div className="brand-card p-3">
+          <div className="kpi-card">
             <div className="kpi-label">Ratio</div>
-            <div className="text-2xl font-bold text-white">{fmt.pct(merchant.ratio_pct)}</div>
+            <div className="text-2xl font-semibold text-[#2E2E2E]">
+              {fmt.pct(merchant.ratio_pct)}
+            </div>
             <span
               className={cn(
                 "inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold border",
@@ -651,9 +655,11 @@ function MerchantModal({
           </div>
         </div>
 
-        <h4 className="text-sm font-semibold text-white mb-3">Disputes ({disputes.length})</h4>
+        <h4 className="text-sm font-semibold text-[#2E2E2E] mb-3">
+          Disputes ({disputes.length})
+        </h4>
         <div className="overflow-x-auto">
-          <table className="w-full dispute-table">
+          <table className="w-full sa-table">
             <thead>
               <tr>
                 <th>Date</th>
@@ -665,9 +671,9 @@ function MerchantModal({
             <tbody>
               {disputes.map((d) => (
                 <tr key={d.dispute_id}>
-                  <td className="text-slate-300">{fmt.date(d.created_at)}</td>
-                  <td className="text-white">{d.customer_name ?? "—"}</td>
-                  <td className="text-white font-semibold">
+                  <td className="text-[#6E6E6E]">{fmt.date(d.created_at)}</td>
+                  <td className="text-[#2E2E2E]">{d.customer_name ?? "—"}</td>
+                  <td className="text-[#2E2E2E] font-semibold">
                     {fmt.money(d.amount_cents, d.currency)}
                   </td>
                   <td>
@@ -703,8 +709,8 @@ function Field({
 }) {
   return (
     <div>
-      <div className="text-xs text-slate-400">{label}</div>
-      <div className={cn("text-slate-200 mt-0.5", mono && "font-mono text-xs", valueClass)}>
+      <div className="text-xs text-[#6E6E6E]">{label}</div>
+      <div className={cn("text-[#2E2E2E] mt-0.5", mono && "font-mono text-xs", valueClass)}>
         {value}
       </div>
     </div>

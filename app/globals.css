@@ -1,19 +1,42 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
 
 :root {
-  --background: #0b1220;
-  --background-elevated: #111a2e;
-  --foreground: #e2e8f0;
-  --muted: #94a3b8;
-  --border: rgba(255, 255, 255, 0.08);
-  --brand: #3b82f6;
-  --accent: #06b6d4;
+  /* Surfaces */
+  --background: oklch(1 0 0);            /* white */
+  --card: oklch(1 0 0);
+  --muted-surface: oklch(0.97 0 0);      /* off-white #F7F7F7 */
+
+  /* Text */
+  --foreground: #2E2E2E;                 /* heading + primary text */
+  --muted-foreground: #6E6E6E;           /* secondary text */
+
+  /* Borders + dividers */
+  --border: #EAEAEA;
+  --divider: #D2D2D2;
+
+  /* Brand */
+  --brand: #004AAC;                      /* SellAbroad blue */
+  --brand-hover: #003a8a;
+  --brand-soft: #E6EEFA;                 /* tinted background for active states */
+
+  /* Status */
+  --success: #16a34a;                    /* green-600 */
+  --warning: #d97706;                    /* amber-600 */
+  --danger: #dc2626;                     /* red-600 */
+  --info: #0891b2;                       /* cyan-600 */
+
+  /* Radius */
+  --radius: 0.625rem;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
+  --color-muted: var(--muted-foreground);
+  --color-brand: var(--brand);
+  --color-border: var(--border);
+  --font-sans: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 * {
@@ -22,58 +45,87 @@
 
 html,
 body {
-  background: linear-gradient(180deg, #0a0f1f 0%, #111a2e 100%);
+  background: var(--background);
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 400;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-.brand-card {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(6, 182, 212, 0.06) 100%);
-  border: 1px solid rgba(59, 130, 246, 0.25);
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
+/* Cards: white surface with subtle border + shadow */
+.sa-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  backdrop-filter: blur(8px);
+/* KPI cards */
+.kpi-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  transition: box-shadow 0.15s ease;
+}
+.kpi-card:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 .kpi-value {
-  font-size: 2rem;
-  font-weight: 700;
-  color: white;
-  line-height: 1.1;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--foreground);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
 
 .kpi-label {
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--muted);
+  color: var(--muted-foreground);
 }
 
-table.dispute-table th {
+/* Tables */
+table.sa-table th {
   text-align: left;
   font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+  font-weight: 500;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
+  background: var(--muted-surface);
 }
-table.dispute-table td {
+table.sa-table td {
   padding: 12px;
   font-size: 0.875rem;
   border-bottom: 1px solid var(--border);
   color: var(--foreground);
 }
-table.dispute-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.04);
+table.sa-table tbody tr:hover {
+  background: var(--muted-surface);
   cursor: pointer;
+}
+
+/* Brand button */
+.btn-brand {
+  background: var(--brand);
+  color: white;
+  border-radius: 0.75rem;
+  padding: 9px 16px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: background 0.15s ease;
+}
+.btn-brand:hover {
+  background: var(--brand-hover);
+}
+.btn-brand:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
