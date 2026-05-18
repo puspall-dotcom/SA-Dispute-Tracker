@@ -129,3 +129,17 @@ table.sa-table tbody tr:hover {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* Suppress browser focus outline on recharts SVG elements — clicking a bar
+   was leaving a thick blue rectangle around the data area. */
+.recharts-wrapper svg,
+.recharts-wrapper path,
+.recharts-wrapper rect,
+.recharts-bar-rectangle path,
+.recharts-bar-rectangle,
+.recharts-tooltip-cursor {
+  outline: none !important;
+}
+.recharts-wrapper *:focus {
+  outline: none !important;
+}

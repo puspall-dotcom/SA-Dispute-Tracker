@@ -101,13 +101,30 @@ export const TIER_META: Record<
   },
 };
 
+// Same canonical bucketing as lib/db/queries.ts — duplicated here so client
+// components can use it without pulling the server-only postgres driver into
+// the browser bundle.
+export function bucketOf(status: string): "open" | "lost" | "won" {
+  const s = (status || "").toLowerCase().trim();
+  if (s === "lost" || s === "refunded" || s === "loss") return "lost";
+  if (s === "won" || s === "cancelled" || s === "canceled") return "won";
+  return "open";
+}
+
 export function statusBadgeClasses(status: string): string {
-  const s = status.toLowerCase();
-  if (s === "won") return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  if (s === "lost") return "bg-red-50 text-red-700 border-red-200";
-  if (s === "under_review" || s === "submitted")
-    return "bg-[#E6EEFA] text-[#004AAC] border-[#B8CFEC]";
-  if (s === "needs_response" || s.includes("warning"))
+  const s = (status || "").toLowerCase().trim();
+  // Closed-against-us: lost or refunded
+  if (s === "won" || s === "cancelled" || s === "canceled")
+    return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (s === "lost" || s === "refunded" || s === "loss")
+    return "bg-red-50 text-red-700 border-red-200";
+  // Open / in-flight stages — anything else
+  if (s.includes("warning") || s === "needs_response" || s === "awaiting pod")
     return "bg-amber-50 text-amber-700 border-amber-200";
+  if (
+    s === "under_review" || s === "submitted" || s === "evidence compiled" ||
+    s === "compiling evidence" || s === "pending evidence" || s === "new" || s === "open"
+  )
+    return "bg-[#E6EEFA] text-[#004AAC] border-[#B8CFEC]";
   return "bg-gray-100 text-gray-700 border-gray-200";
 }
