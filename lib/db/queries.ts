@@ -340,6 +340,20 @@ export async function getDisputeDashboardData(): Promise<DisputeDashboardData> {
        AND (c.email IS NULL OR (LOWER(c.email) NOT LIKE '%@test%' AND LOWER(c.email) <> 'curtsoyaks@gmail.com'))
        AND (c.first_name IS NULL OR LOWER(c.first_name) NOT IN ('test', 'testing'))
        AND (c.last_name IS NULL OR LOWER(c.last_name) NOT IN ('test', 'testing'))
+       -- Per-merchant owner / family / internal-staff exclusion list.
+       -- Orders placed by these emails at the named merchant are not real
+       -- customer-facing transactions (merchant testing their own checkout,
+       -- placing house orders, etc.) and would inflate the dispute-ratio
+       -- denominator. Extend this list as more merchants surface — keep
+       -- scoped by merchant name so we don't accidentally exclude real
+       -- customers at other merchants who happen to share an email.
+       AND NOT (
+         m.name = 'Research Chemical'
+         AND (
+           LOWER(o.email) IN ('anweinbe@gmail.com', 'info@researchchemical.com')
+           OR LOWER(c.email) IN ('anweinbe@gmail.com', 'info@researchchemical.com')
+         )
+       )
      GROUP BY m.id, m.name, ss.store_name`
   );
   const ordersByMerchant = new Map<string, { merchant: string; raw_name: string; orders: number }>();

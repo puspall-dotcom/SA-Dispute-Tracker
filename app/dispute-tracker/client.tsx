@@ -223,6 +223,74 @@ function SortDropdown({
   );
 }
 
+// Canonical workflow order for substatus filter. Same ordering as
+// STATUS_OPTIONS but lifted here so the dropdown shows statuses in
+// pipeline order, not insertion-order from the data.
+const SUBSTATUS_WORKFLOW_ORDER = [
+  "New",
+  "Pending Evidence",
+  "Compiling Evidence",
+  "Awaiting POD",
+  "Evidence Compiled",
+  "Submitted",
+  "Under Review",
+  "Won",
+  "Lost",
+  "Refunded",
+  "Cancelled",
+];
+
+// Professional dropdown replacement for the side-by-side substatus pills.
+// Lists "All (N)" + every substatus present in `subCounts` with its count,
+// rendered in canonical workflow order. Visually mirrors SortDropdown so
+// the two sit cleanly next to each other in the modal toolbar.
+function SubstatusDropdown({
+  value, onChange, subCounts, totalCount, className = "",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  subCounts: Array<[string, number]>;
+  totalCount: number;
+  className?: string;
+}) {
+  const titleCase = (s: string) =>
+    s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+  // Show substatuses in canonical workflow order. Any status present in
+  // the data but not in the workflow list (custom values typed into the
+  // sheet) falls back to the end so it remains selectable.
+  const ordered = useMemo(() => {
+    const presentMap = new Map(subCounts);
+    const inOrder: Array<[string, number]> = [];
+    for (const s of SUBSTATUS_WORKFLOW_ORDER) {
+      if (presentMap.has(s)) {
+        inOrder.push([s, presentMap.get(s)!]);
+        presentMap.delete(s);
+      }
+    }
+    for (const entry of presentMap.entries()) inOrder.push(entry);
+    return inOrder;
+  }, [subCounts]);
+
+  return (
+    <label className={cn("inline-flex items-center gap-2 text-xs text-[#6E6E6E]", className)}>
+      <span className="font-semibold uppercase tracking-wider text-[10px]">Filter by status</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-md border border-[#D2D2D2] bg-white px-2.5 py-1 text-xs text-[#2E2E2E] focus:outline-none focus:border-[#004AAC] focus:ring-1 focus:ring-[#004AAC] cursor-pointer min-w-[200px]"
+      >
+        <option value="all">All ({totalCount})</option>
+        {ordered.map(([status, count]) => (
+          <option key={status} value={status}>
+            {titleCase(status)} ({count})
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* Main client                                                                  */
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -1672,9 +1740,6 @@ function FilteredDisputesModal({
     setSortKey("newest");
   }, [rows]);
 
-  const titleCase = (s: string) =>
-    s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-
   return (
     <div
       className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 flex items-start justify-center p-4 lg:p-12 overflow-y-auto"
@@ -1699,45 +1764,13 @@ function FilteredDisputesModal({
 
         <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
           {subCounts.length > 1 ? (
-            <div className="flex items-center flex-wrap gap-2 flex-1 min-w-0">
-              <span className="text-[10px] uppercase tracking-wider text-[#6E6E6E] font-semibold mr-1">
-                Filter by status:
-              </span>
-              <button
-                onClick={() => setSubFilter("all")}
-                className={cn(
-                  "px-3 py-1 rounded-full border text-xs font-medium transition-all",
-                  subFilter === "all"
-                    ? "bg-[#E6EEFA] border-[#004AAC] text-[#004AAC]"
-                    : "bg-white border-[#EAEAEA] text-[#6E6E6E] hover:border-[#004AAC] hover:text-[#2E2E2E]"
-                )}
-              >
-                All ({rows.length})
-              </button>
-              {subCounts.map(([status, count]) => {
-                const active = subFilter === status;
-                return (
-                  <button
-                    key={status}
-                    onClick={() => setSubFilter(status)}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium transition-all",
-                      active
-                        ? "bg-[#E6EEFA] border-[#004AAC] text-[#004AAC]"
-                        : "bg-white border-[#EAEAEA] text-[#6E6E6E] hover:border-[#004AAC] hover:text-[#2E2E2E]"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "inline-block w-1.5 h-1.5 rounded-full",
-                        statusBadgeClasses(status).split(" ")[0]
-                      )}
-                    />
-                    {titleCase(status)} ({count})
-                  </button>
-                );
-              })}
-            </div>
+            <SubstatusDropdown
+              value={subFilter}
+              onChange={setSubFilter}
+              subCounts={subCounts}
+              totalCount={rows.length}
+              className="shrink-0"
+            />
           ) : (
             <div />
           )}
