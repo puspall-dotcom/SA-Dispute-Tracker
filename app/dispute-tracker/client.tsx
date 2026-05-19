@@ -664,7 +664,8 @@ export function DisputeTrackerClient({ data }: { data: DisputeDashboardData }) {
                   <CartesianGrid stroke="#EAEAEA" vertical={false} />
                   <XAxis
                     dataKey="label"
-                    tick={{ fill: "#6E6E6E", fontSize: 11 }}
+                    interval={0}
+                    tick={{ fill: "#6E6E6E", fontSize: 10 }}
                     axisLine={{ stroke: "#EAEAEA" }}
                     tickLine={false}
                   />
